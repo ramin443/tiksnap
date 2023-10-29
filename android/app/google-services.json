@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "336538886781",
+    "project_id": "tiksnap-f4a09",
+    "storage_bucket": "tiksnap-f4a09.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336538886781:android:d932eb866a7653dde3c714",
+        "android_client_info": {
+          "package_name": "com.mintstudios.tiksnap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2HrPF_gzcq5EXfF76Lb_MRR4ie3hTwzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
