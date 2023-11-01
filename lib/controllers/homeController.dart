@@ -17,6 +17,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:sqflite/sqflite.dart';
+import 'package:tiksnap/dbhelpers/SavedAudiosDBHelper.dart';
+import 'package:tiksnap/models/SavedAudios.dart';
 import '../constants/colorconstants.dart';
 import '../constants/fontconstants.dart';
 import '../constants/teststrings.dart';
@@ -35,10 +37,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'adController.dart';
-final AdController adController =
-Get.put(AdController());
+
+final AdController adController = Get.put(AdController());
+
 class HomeController extends GetxController {
   final dbHelper = SavedVideosDatabaseHelper();
+  final audiodbHelper = SavedAudiosDatabaseHelper();
   TextEditingController linkfieldcontroller = TextEditingController();
   int showdownload = 0;
   List<DownloadedVideo> tasklist = [];
@@ -51,41 +55,60 @@ class HomeController extends GetxController {
   TikTokResponse? receivedtiktokResponse;
   bool isLoading = false;
   String lastdownloadedurl = "";
-  int downloadtaps=0;
-  int openVideotaps=0;
+  int downloadtaps = 0;
+  int audiodownloadtaps = 0;
+  int openVideotaps = 0;
+
   //the following are parsing controls
   bool isLinkValid = false;
   bool errorThrown = false;
   int downloadProgress = 0;
+  int audiodownloadProgress = 0;
   late TargetPlatform? platform;
   String? localPath = '';
 
-  void incrementDownloadtaps(){
+  void incrementDownloadtaps() {
     downloadtaps++;
-    int downtaplimit=adController.downtapfrequency;
-    if(downloadtaps % downtaplimit == 0){
+    int downtaplimit = adController.downtapfrequency;
+    if (downloadtaps % downtaplimit == 0) {
       adController.showInterstitialAd();
     }
     update();
-
   }
-  void incrementopenVideotaps(){
-    openVideotaps++;
-    int playtaplimit=adController.playtapfrequency;
 
-    if(openVideotaps % playtaplimit == 0){
+  void incrementAudioDownloadtaps(){
+    audiodownloadtaps++;
+    int downtaplimit = adController.downtapfrequency;
+    if (audiodownloadtaps % downtaplimit == 0) {
       adController.showInterstitialAd();
-    }update();
+    }
+    update();
   }
-  void saveVideo(SavedVideos savedVideo)async{
+  void incrementopenVideotaps() {
+    openVideotaps++;
+    int playtaplimit = adController.playtapfrequency;
+
+    if (openVideotaps % playtaplimit == 0) {
+      adController.showInterstitialAd();
+    }
+    update();
+  }
+
+  void saveVideo(SavedVideos savedVideo) async {
     await dbHelper.insertVideo(savedVideo);
     update();
   }
-  void deleteVideo(String url)async{
+
+  void saveAudio(SavedAudios savedAudio) async {
+    await audiodbHelper.insertAudio(savedAudio);
+    update();
+  }
+
+  void deleteVideo(String url) async {
     await dbHelper.deleteVideo(url);
     update();
   }
-  
+
   void setlastdownload(String url) {
     lastdownloadedurl = url;
     update();
@@ -102,6 +125,19 @@ class HomeController extends GetxController {
     downloadProgress = 0;
     update();
   }
+  void resetAudioDownloadingProgress() {
+    audiodownloadProgress = 0;
+    update();
+  }
+  void setaudiodownloadProgress(int progress) {
+    print("Setting audio progress $progress");
+    audiodownloadProgress = progress;
+    update();
+  }
+
+
+
+
 
   void setlinkvalidastrue() {
     isLinkValid = true;
@@ -179,6 +215,38 @@ class HomeController extends GetxController {
             });
         FileDownloader.setLogEnabled(true);*/
         downloadtestvideo(downloadurl);
+
+        //     print("Download Completed.");
+      } catch (e) {
+        print("Download Failed.\n\n" + e.toString());
+      }
+    }
+  }
+  void testAudiodownload(String downloadurl) async {
+    String forcedurl =
+        "https://instagram.fppg1-1.fna.fbcdn.net/v/t66.30100-16/53905490_847286777011273_1522532917070693776_n.mp4?_nc_ht=instagram.fppg1-1.fna.fbcdn.net&_nc_cat=101&_nc_ohc=baAHlPPFljkAX8dpuz_&edm=APfKNqwBAAAA&ccb=7-5&oh=00_AfBBlvtum7R88yAwNvCC-qjocoa-0x0jRoBO4QCRDOlrHg&oe=64D38788&_nc_sid=721f0c";
+    bool permissionReady = await _checkPermission();
+    if (permissionReady) {
+      await _prepareSaveDir();
+      //  await _prepareSaveDir();
+      print("Downloading");
+
+      try {
+        /*FileDownloader.downloadFile(
+            //url: receivedMedia!.url.trim(),
+            url: forcedurl,
+            name: "Neu file test",
+            onProgress: ( fileName, progress) {
+              print('FILE $fileName HAS PROGRESS $progress');
+            },
+            onDownloadCompleted: (String path) {
+              print('FILE DOWNLOADED TO PATH: $path');
+            },
+            onDownloadError: (String error) {
+              print('DOWNLOAD ERROR: $error');
+            });
+        FileDownloader.setLogEnabled(true);*/
+        downloadtestaudio(downloadurl);
 
         //     print("Download Completed.");
       } catch (e) {
@@ -307,8 +375,8 @@ class HomeController extends GetxController {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    VideoPlayPage(url: receivedtiktokResponse!.data.play)));
+                                builder: (context) => VideoPlayPage(
+                                    url: receivedtiktokResponse!.data.play)));
                       },
                       icon: Icon(
                         CupertinoIcons.play_fill,
@@ -337,14 +405,15 @@ class HomeController extends GetxController {
                           fontSize: screenwidth * 0.03),
                     ),
                   ),
-                //  receivedMedia!.url != lastdownloadedurl ? downloadbutton(context) :
+                  //  receivedMedia!.url != lastdownloadedurl ? downloadbutton(context) :
                   downloadProgress > 0 && downloadProgress < 100
-                          ? downloadProgressBar(context)
-                          : downloadProgress == 0
-                              ? downloadbutton(context)
-                              : downloadProgress == 100
-                                  ? openVideoButton(context)
-                                  : downloadbutton(context),
+                      ? downloadVideoAudioButtons(context)
+                      : downloadProgress == 0
+                          ? downloadVideoAudioButtons(context)
+                          : downloadProgress == 100
+                              ? downloadVideoAudioButtons(context)
+                              : downloadVideoAudioButtons(context)
+                  //    : downloadbutton(context),
                 ],
               ),
             ),
@@ -355,7 +424,7 @@ class HomeController extends GetxController {
   Widget downloadProgressBar(BuildContext context) {
     double screenwidth = MediaQuery.sizeOf(context).width;
     return Container(
-     // height: 6,
+      // height: 6,
       width: screenwidth * 0.715,
       margin: EdgeInsets.only(bottom: screenwidth * 0.0634),
       child: Column(
@@ -419,7 +488,8 @@ class HomeController extends GetxController {
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => VideoPlayPage(url: receivedtiktokResponse!.data.play)));
+                builder: (context) =>
+                    VideoPlayPage(url: receivedtiktokResponse!.data.play)));
       },
       child: Container(
         margin: EdgeInsets.only(bottom: screenwidth * 0.0634),
@@ -457,23 +527,379 @@ class HomeController extends GetxController {
       ),
     );
   }
-  void checkpermissionsandDownload()async{
-    var manageExternalStoragestatus = await Permission.manageExternalStorage.status;
 
-    if(manageExternalStoragestatus.isDenied){
+  Widget videoDownloadButton(
+      {BuildContext? context}) {
+    double screenwidth = MediaQuery.sizeOf(context!).width;
+    return downloadProgress > 0 && downloadProgress < 100
+        ? Stack(
+            children: [
+              Container(
+                width: screenwidth * 0.33,
+                height: screenwidth * 0.107,
+                decoration: BoxDecoration(
+                  color: tiksaverdarkgreybg,
+                  borderRadius: BorderRadius.all(Radius.circular(26)),
+                ),
+              ),
+              Container(
+                width: screenwidth * 0.33,
+                height: screenwidth * 0.107,
+                decoration: BoxDecoration(
+                  color: tiksaverdarkgreybg,
+                  borderRadius: BorderRadius.all(Radius.circular(26)),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      bottomLeft: Radius.circular(20),
+                      topRight: downloadProgress == 100
+                          ? Radius.circular(20)
+                          : Radius.circular(0),
+                      bottomRight: downloadProgress == 100
+                          ? Radius.circular(20)
+                          : Radius.circular(0)),
+                  child: LinearProgressIndicator(
+                    semanticsLabel: "$downloadProgress%",
+                    value: downloadProgress / 100,
+                    // Convert the progress to a value between 0 and 1
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.redAccent), // Change this color as needed
+                  ),
+                ),
+              ),
+              Container(
+                width: screenwidth * 0.33,
+                height: screenwidth * 0.107,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.all(Radius.circular(26)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      FeatherIcons.download,
+                      //      size: 20,
+                      size: screenwidth * 0.0446,
+                      color: Colors.white,
+                    ),
+                    Container(
+                      margin: EdgeInsets.only(
+                          //        left: 12
+                          top: screenwidth * 0.007,
+                          left: screenwidth * 0.0241),
+                      child: Text(
+                        "$downloadProgress%",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontFamily: alshaussregular,
+                            color: Colors.white,
+                            //    fontSize: 14.5
+                            fontSize: screenwidth * 0.041),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
+        : downloadProgress == 100
+            ? GestureDetector(
+              child:
+              Container(
+                  width: screenwidth * 0.33,
+                  height: screenwidth * 0.107,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.all(Radius.circular(26)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                       FeatherIcons.video
+                            ,
+                        //      size: 20,
+                        size: screenwidth * 0.0446,
+                        color: Colors.white,
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(
+                            //        left: 12
+                            top: screenwidth * 0.007,
+                            left: screenwidth * 0.0241),
+                        child: Text(
+                          "Open",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontFamily: alshaussregular,
+                              color: Colors.white,
+                              //    fontSize: 14.5
+                              fontSize: screenwidth * 0.041),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            )
+            : GestureDetector(
+                onTap: () {
+                  checkpermissionsandDownloadVideo();
+                },
+                child: Container(
+                  width: screenwidth * 0.33,
+                  height: screenwidth * 0.107,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.all(Radius.circular(26)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        FeatherIcons.download,
+                        //      size: 20,
+                        size: screenwidth * 0.0446,
+                        color: Colors.white,
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(
+                            //        left: 12
+                            top: screenwidth * 0.007,
+                            left: screenwidth * 0.0241),
+                        child: Text(
+                          "Video",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontFamily: alshaussregular,
+                              color: Colors.white,
+                              //    fontSize: 14.5
+                              fontSize: screenwidth * 0.041),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+  }
+  Widget audioDownloadButton(
+      {BuildContext? context}) {
+    double screenwidth = MediaQuery.sizeOf(context!).width;
+    return audiodownloadProgress > 0 && audiodownloadProgress < 100
+        ? Stack(
+      children: [
+        Container(
+          width: screenwidth * 0.33,
+          height: screenwidth * 0.107,
+          decoration: BoxDecoration(
+            color: tiksaverdarkgreybg,
+            borderRadius: BorderRadius.all(Radius.circular(26)),
+          ),
+        ),
+        Container(
+          width: screenwidth * 0.33,
+          height: screenwidth * 0.107,
+          decoration: BoxDecoration(
+            color: tiksaverdarkgreybg,
+            borderRadius: BorderRadius.all(Radius.circular(26)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                bottomLeft: Radius.circular(20),
+                topRight: audiodownloadProgress == 100
+                    ? Radius.circular(20)
+                    : Radius.circular(0),
+                bottomRight: audiodownloadProgress == 100
+                    ? Radius.circular(20)
+                    : Radius.circular(0)),
+            child: LinearProgressIndicator(
+              semanticsLabel: "$audiodownloadProgress%",
+              value: audiodownloadProgress / 100,
+              // Convert the progress to a value between 0 and 1
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.redAccent), // Change this color as needed
+            ),
+          ),
+        ),
+        Container(
+          width: screenwidth * 0.33,
+          height: screenwidth * 0.107,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.all(Radius.circular(26)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                FeatherIcons.downloadCloud,
+                //      size: 20,
+                size: screenwidth * 0.0446,
+                color: Colors.white,
+              ),
+              Container(
+                margin: EdgeInsets.only(
+                  //        left: 12
+                    top: screenwidth * 0.007,
+                    left: screenwidth * 0.0241),
+                child: Text(
+                  "$audiodownloadProgress%",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontFamily: alshaussregular,
+                      color: Colors.white,
+                      //    fontSize: 14.5
+                      fontSize: screenwidth * 0.041),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    )
+        : audiodownloadProgress == 100
+        ? GestureDetector(
+      child:
+      Container(
+        width: screenwidth * 0.33,
+        height: screenwidth * 0.107,
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.all(Radius.circular(26)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+             FeatherIcons.headphones,
+              //      size: 20,
+              size: screenwidth * 0.0446,
+              color: Colors.white,
+            ),
+            Container(
+              margin: EdgeInsets.only(
+                //        left: 12
+                  top: screenwidth * 0.007,
+                  left: screenwidth * 0.0241),
+              child: Text(
+                "Open",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: alshaussregular,
+                    color: Colors.white,
+                    //    fontSize: 14.5
+                    fontSize: screenwidth * 0.041),
+              ),
+            ),
+          ],
+        ),
+      ),
+    )
+        : GestureDetector(
+      onTap: () {
+        checkpermissionsandDownloadAudio();
+      },
+      child: Container(
+        width: screenwidth * 0.33,
+        height: screenwidth * 0.107,
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.all(Radius.circular(26)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              FeatherIcons.downloadCloud,
+              //      size: 20,
+              size: screenwidth * 0.0446,
+              color: Colors.white,
+            ),
+            Container(
+              margin: EdgeInsets.only(
+                //        left: 12
+                  top: screenwidth * 0.007,
+                  left: screenwidth * 0.0241),
+              child: Text(
+                "Audio",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: alshaussregular,
+                    color: Colors.white,
+                    //    fontSize: 14.5
+                    fontSize: screenwidth * 0.041),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget downloadVideoAudioButtons(BuildContext context) {
+    double screenwidth = MediaQuery.sizeOf(context).width;
+    return Container(
+      margin: EdgeInsets.only(bottom: screenwidth * 0.0634),
+      width: screenwidth * 0.715,
+      height: screenwidth * 0.107,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          GestureDetector(
+            onTap: (){
+              checkpermissionsandDownloadVideo();
+            },
+            child: videoDownloadButton(
+                context: context,
+               ),
+          ),
+          GestureDetector(
+            onTap: (){
+              checkpermissionsandDownloadAudio();
+
+            },
+            child: audioDownloadButton(
+                context: context,),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void checkpermissionsandDownloadVideo() async {
+    var manageExternalStoragestatus =
+        await Permission.manageExternalStorage.status;
+
+    if (manageExternalStoragestatus.isDenied) {
       await Permission.manageExternalStorage.request();
     }
     incrementDownloadtaps();
     testdownload(receivedtiktokResponse!.data.play);
     setdownloadProgress(1);
     incrementdownloadsfortoday();
-
   }
+  void checkpermissionsandDownloadAudio() async {
+    var manageExternalStoragestatus =
+    await Permission.manageExternalStorage.status;
+
+    if (manageExternalStoragestatus.isDenied) {
+      await Permission.manageExternalStorage.request();
+    }
+    incrementAudioDownloadtaps();
+    testAudiodownload(receivedtiktokResponse!.data.musicInfo.play);
+    setaudiodownloadProgress(1);
+    incrementaudiodownloadsfortoday();
+  }
+
   Widget downloadbutton(BuildContext context) {
     double screenwidth = MediaQuery.sizeOf(context).width;
     return GestureDetector(
       onTap: () {
-        checkpermissionsandDownload();
+        checkpermissionsandDownloadVideo();
       },
       child: Container(
         margin: EdgeInsets.only(bottom: screenwidth * 0.0634),
@@ -511,19 +937,23 @@ class HomeController extends GetxController {
       ),
     );
   }
-  void neuParsePastedLink({String? urli})async{
-    String shortCode=extractShortcode(urli!);
+
+  void neuParsePastedLink({String? urli}) async {
+    String shortCode = extractShortcode(urli!);
     final encodedParams = Uri(queryParameters: {'shortcode': shortCode}).query;
 
-    final Uri url = Uri.parse('https://instagram-saver-download-anything-on-instagram.p.rapidapi.com/post_data');
+    final Uri url = Uri.parse(
+        'https://instagram-saver-download-anything-on-instagram.p.rapidapi.com/post_data');
 
     final Map<String, String> headers = {
       'content-type': 'application/x-www-form-urlencoded',
       'X-RapidAPI-Key': '1b6b87d966msh79911a19efb2892p1e4e0fjsn0e980c80dc71',
-      'X-RapidAPI-Host': 'instagram-saver-download-anything-on-instagram.p.rapidapi.com',
+      'X-RapidAPI-Host':
+          'instagram-saver-download-anything-on-instagram.p.rapidapi.com',
     };
 
-    final response = await http.post(url, headers: headers, body: encodedParams);
+    final response =
+        await http.post(url, headers: headers, body: encodedParams);
 
     if (response.statusCode == 200) {
       print(response.body);
@@ -534,6 +964,7 @@ class HomeController extends GetxController {
 
   void parsePastedLink({String? urli}) async {
     setdownloadProgress(0);
+    resetAudioDownloadingProgress();
     final url =
         'https://instagram-saver-download-anything-on-instagram.p.rapidapi.com/igsanitized';
     final headers = {
@@ -548,7 +979,7 @@ class HomeController extends GetxController {
       final response = await http.post(Uri.parse(url),
           headers: headers, body: encodedParams);
       print(response.body);
-    //  parseResponsetoOutput(response.body);
+      //  parseResponsetoOutput(response.body);
     } catch (error) {
       print('Error from pasted link');
       runnewMainDownload(urli!);
@@ -558,16 +989,16 @@ class HomeController extends GetxController {
     }
   }
 
-  void updatedParsePastedLink({String? urli})async{
+  void updatedParsePastedLink({String? urli}) async {
     setdownloadProgress(0);
+    resetAudioDownloadingProgress();
     try {
       tikTokAPIResponse(urli!);
-    //  runnewMainDownload(urli!);
-   //   runBackupdownload(urli!);
+      //  runnewMainDownload(urli!);
+      //   runBackupdownload(urli!);
     } catch (error) {
       //erro thrown here
       print("IN Here");
-
     }
   }
 
@@ -685,38 +1116,40 @@ class HomeController extends GetxController {
               });
             },
             child: Container(
-                //  width: 119,
-                width: screenwidth * 0.3895,
-                padding: EdgeInsets.symmetric(
-                    //           vertical: 9),
-                    vertical: screenwidth * 0.0318),
-                decoration: BoxDecoration(
-                    color: tiksavermainaccent,
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withOpacity(0.13),
-                          offset: Offset(0, 3),
-                          blurRadius: 10)
-                    ]),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(CupertinoIcons.doc_on_clipboard,
+              //  width: 119,
+              width: screenwidth * 0.3895,
+              padding: EdgeInsets.symmetric(
+                  //           vertical: 9),
+                  vertical: screenwidth * 0.0318),
+              decoration: BoxDecoration(
+                  color: tiksavermainaccent,
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.13),
+                        offset: Offset(0, 3),
+                        blurRadius: 10)
+                  ]),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    CupertinoIcons.doc_on_clipboard,
                     color: Colors.white,
-                    size: screenwidth*0.0583,),
-                    Container(
-                      margin: EdgeInsets.only(left: screenwidth*0.034),
-                      child: Text("Paste Link",
-                            style: TextStyle(
-                                //        fontSize: 16,
-                                fontSize: screenwidth * 0.0439,
-                                color: Colors.white,
-                                fontFamily: alshaussregular)),
-                    ),
-                  ],
-                ),
-                )),
+                    size: screenwidth * 0.0583,
+                  ),
+                  Container(
+                    margin: EdgeInsets.only(left: screenwidth * 0.034),
+                    child: Text("Paste Link",
+                        style: TextStyle(
+                            //        fontSize: 16,
+                            fontSize: screenwidth * 0.0439,
+                            color: Colors.white,
+                            fontFamily: alshaussregular)),
+                  ),
+                ],
+              ),
+            )),
         GestureDetector(
             onTap: () {},
             child: AnimatedContainer(
@@ -727,7 +1160,7 @@ class HomeController extends GetxController {
                     //        left: 60
                     left: screenwidth * 0.0459),
                 padding: EdgeInsets.symmetric(
-                  //           vertical: 9),
+                    //           vertical: 9),
                     vertical: screenwidth * 0.0318),
                 decoration: BoxDecoration(
                     color:
@@ -750,7 +1183,7 @@ class HomeController extends GetxController {
                         2
                         ? royalbluethemedcolor
                         : */
-                    tiksavermainaccent.withOpacity(0.41),
+                        tiksavermainaccent.withOpacity(0.41),
                     borderRadius: BorderRadius.all(Radius.circular(24)),
                     boxShadow: [
                       BoxShadow(
@@ -780,7 +1213,7 @@ class HomeController extends GetxController {
           bottom: screenwidth * 0.0437),
       padding: EdgeInsets.only(
           //        left: 15
-        top: 2.5,
+          top: 2.5,
           left: screenwidth * 0.0364963),
       //    height: 41,
       height: screenwidth * 0.12975,
@@ -946,7 +1379,7 @@ class HomeController extends GetxController {
           /* print("COnverted int progress is $intprogress");
           print('Progress: ${progress * 100}%');*/
           int intprogress = (progress * 100).toInt();
-          if(intprogress>0){
+          if (intprogress > 0) {
             setdownloadProgress(intprogress);
           }
         },
@@ -977,10 +1410,15 @@ class HomeController extends GetxController {
           // handle error
           print("Error with new file path");
         } else {
-          SavedVideos savedVidmodel= SavedVideos(caption: receivedtiktokResponse!.data.title,
-              postType:"Video", height: 300,
-              width: 100, mediaType: "Video",
-              thumbnail: receivedtiktokResponse!.data.cover, url: receivedtiktokResponse!.data.play, fileLocationPath: newFilepath);
+          SavedVideos savedVidmodel = SavedVideos(
+              caption: receivedtiktokResponse!.data.title,
+              postType: "Video",
+              height: 300,
+              width: 100,
+              mediaType: "Video",
+              thumbnail: receivedtiktokResponse!.data.cover,
+              url: receivedtiktokResponse!.data.play,
+              fileLocationPath: newFilepath);
           saveVideo(savedVidmodel);
           moveFileToGallery(newFilepath);
           print("Files file path found and it is $newFilepath");
@@ -993,6 +1431,122 @@ class HomeController extends GetxController {
         print('Download not successful');
     }
   }
+
+  void downloadtestaudio(String url) async {
+    String videoUrl = url;
+    String forcedurl =
+        "https://z-p4-instagram.fsgn5-12.fna.fbcdn.net/v/t66.30100-16/318229749_938006627283968_4480891006851727740_n.mp4?_nc_ht=z-p4-instagram.fsgn5-12.fna.fbcdn.net&_nc_cat=108&_nc_ohc=MngP_LvlbmwAX85qlPG&edm=APfKNqwBAAAA&ccb=7-5&oh=00_AfDuGAHuKPPribFmiOU-tyjutyHtOsZ1XDA-Aip3Vk7lNQ&oe=64D8FEDE&_nc_sid=721f0c";
+    String caption =
+        "Save THIS\u2705\ud83d\udccc\n\nThese are my all time favorite cookies. \n\nNot only do they taste amazing, one cookie packs a punch filling you up nicely.\n\nI must warn you it tastes bland first time around given that there\u2019s no sugar added (except honey). \n\nYou\u2019re more than welcome to play with honey serving, as well as other natural sweeteners like Stevia. \n\nFull instructions & recipe below:\n\n-You will need: \n\n8 eggs\n1 cup of oats\n7 heaping tablespoons of peanut butter\nTeaspoon of honey\nTeaspoon of vanilla extract\n5 scoops of protein of your choice (I use Isopure vanilla flavored)\n1 banana\n2 scoops of Casein Protein of your choice (I use Optimum Nutrition)\n\n-Preheat oven to 425 degrees Fahrenheit. \n\nWhen placing cookies on baking tray:\nOne tablespoon = 1 cookie.\n\nPlace cookies into the baking tray. Make sure to spray the baking sheet with non-stick cooking oil spray!\n\nSet timer for 9 minutes. \n\nAnd voila! \n\nTotal cookies: 22\n\nOverall Macros:\nFat: 159g\nCarbs: 98g\nProtein: 257g\n\nMacros per cookie: \nProtein: 12g\nFat: 7g\nCarbs: 4g\n\n*I recommend storing them in a fridge.\n\nFollow @rishandfit for more fitness content\ud83e\uddbe\n\n\u2022\n\u2022\n\u2022\n\n#fyp #fyp\u30b7 #foru #explore #fitness #gym #gymaddict #healthylifestyle #proteinrecipes #healthyliving #bodypositivity #fit #fitfam #fitnessaddict #fitnessjourney #fitnessmotivation #reels #explorepage";
+    String finalpurestring = caption.replaceAll(RegExp(r'[\x00-\x1F]'), '');
+
+    if (finalpurestring.length > 14) {
+      finalpurestring = finalpurestring.substring(0, 14);
+    } else {
+      finalpurestring = finalpurestring;
+    }
+    update();
+
+    final Directory? externalDir = await getExternalStorageDirectory();
+    String externalStoragePath = externalDir!.path + '/' + finalpurestring;
+    String randomUniqueString = generateRandomString(4);
+    String filename = randomUniqueString;
+    String reccaption = receivedtiktokResponse!.data.title;
+    if (reccaption.length > 25) {
+      filename = "${reccaption.substring(0, 24)}$randomUniqueString.mp4";
+    } else {
+      filename = "$reccaption$randomUniqueString.mp4";
+    }
+
+    final task = DownloadTask(
+        url: videoUrl,
+        // urlQueryParameters: {'q': 'pizza'},
+//        filename: "finalpurestring.mp4",
+        filename: filename,
+        headers: {"auth": "test_for_sql_encoding"},
+        directory: "DownloadedVideos",
+        baseDirectory: BaseDirectory.applicationDocuments,
+        updates: Updates.statusAndProgress,
+        // request status and progress updates
+        requiresWiFi: true,
+        retries: 5,
+        allowPause: true,
+        metaData: 'data for me');
+
+// Start download, and wait for result. Show progress and status changes
+// while downloading
+    final result = await FileDownloader().download(task,
+        onProgress: (progress) {
+          /* print("COnverted int progress is $intprogress");
+          print('Progress: ${progress * 100}%');*/
+          int intprogress = (progress * 100).toInt();
+          if (intprogress > 0) {
+            setaudiodownloadProgress(intprogress);
+          }
+        },
+        onStatus: (status) => print('Status: $status'));
+// Act on the result
+    switch (result) {
+      case TaskStatus.complete:
+        print('Success!');
+
+      case TaskStatus.canceled:
+        print('Download was canceled');
+
+      case TaskStatus.paused:
+        print('Download was paused');
+
+      default:
+        print("URL received here is: $videoUrl");
+        print("URL set on top is: ${receivedtiktokResponse!.data.play}");
+        setlastdownload(videoUrl);
+        final newFilepath = await FileDownloader()
+            .moveToSharedStorage(task, SharedStorage.files);
+        // await FileDownloader().moveToSharedStorage(task, SharedStorage.video);
+        final externalFilePath = await FileDownloader()
+            .moveToSharedStorage(task, SharedStorage.external);
+        final videoFilePath = await FileDownloader()
+            .moveToSharedStorage(task, SharedStorage.external);
+        if (newFilepath == null) {
+          // handle error
+          print("Error with new file path");
+        } else {
+         // add audio model database here
+          /*SavedAudios savedAudiomodel = SavedAudios(
+              caption: receivedtiktokResponse!.data.title,
+              postType: "Video",
+              height: 300,
+              width: 100,
+              mediaType: "Video",
+              thumbnail: receivedtiktokResponse!.data.cover,
+              url: receivedtiktokResponse!.data.play,
+              fileLocationPath: newFilepath);*/
+          SavedAudios savedAudiomodel = SavedAudios(
+              title: receivedtiktokResponse!.data.musicInfo.title==null?"":
+              receivedtiktokResponse!.data.musicInfo.title,
+              play: receivedtiktokResponse!.data.musicInfo.play==null?"":
+              receivedtiktokResponse!.data.musicInfo.play,
+              cover:receivedtiktokResponse!.data.musicInfo.cover==null?"":
+              receivedtiktokResponse!.data.musicInfo.cover,
+              author:  receivedtiktokResponse!.data.musicInfo.author==null?"":
+              receivedtiktokResponse!.data.musicInfo.author,
+              duration:  receivedtiktokResponse!.data.musicInfo.duration==null?10:
+              receivedtiktokResponse!.data.musicInfo.duration,
+              album:  receivedtiktokResponse!.data.musicInfo.album==null?"":
+              receivedtiktokResponse!.data.musicInfo.album
+          );
+          saveAudio(savedAudiomodel);
+          print("Files file path found and it is $newFilepath");
+          print("External file path found and it is $externalFilePath");
+          print("Video file path found and it is $videoFilePath");
+
+          // do something with the newFilePath
+        }
+        // final downloadedTasks= await FileDownloader().openFile(task: task);
+        print('Download not successful');
+    }
+  }
+
   void incrementdownloadsfortoday() async {
     // Get reference to Firestore collection
     var collectionRef = FirebaseFirestore.instance.collection('NeuDownloads');
@@ -1011,11 +1565,35 @@ class HomeController extends GetxController {
           .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
           .set({"numberofdownloads": 1});
     }*/
-    await collectionRef.doc(DateFormat.yMMMMd('en_US').format(DateTime.now())).
-    set({
-      "numberofdownloads": FieldValue.increment(1)
-    },SetOptions(merge: true));
+    await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .set({"numberofdownloads": FieldValue.increment(1)},
+            SetOptions(merge: true));
   }
+  void incrementaudiodownloadsfortoday() async {
+    // Get reference to Firestore collection
+    var collectionRef = FirebaseFirestore.instance.collection('NeuDownloads');
+    /*var doc = await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .get();
+
+    if (doc.exists) {
+      await FirebaseFirestore.instance
+          .collection("NeuDownloads")
+          .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+          .update({"numberofdownloads": FieldValue.increment(1)});
+    } else {
+      await FirebaseFirestore.instance
+          .collection("NeuDownloads")
+          .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+          .set({"numberofdownloads": 1});
+    }*/
+    await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .set({"numberofaudiodownloads": FieldValue.increment(1)},
+        SetOptions(merge: true));
+  }
+
   void incrementplaysfortoday() async {
     // Get reference to Firestore collection
     var collectionRef = FirebaseFirestore.instance.collection('Plays');
@@ -1033,11 +1611,12 @@ class HomeController extends GetxController {
           .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
           .set({"numberofplays": 1});
     }*/
-    await collectionRef.doc(DateFormat.yMMMMd('en_US').format(DateTime.now())).
-    set({
-      "numberofplays": FieldValue.increment(1)
-    },SetOptions(merge: true));
+    await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .set({"numberofplays": FieldValue.increment(1)},
+            SetOptions(merge: true));
   }
+
   String generateRandomString(int length) {
     final random = Random();
     const chars =
@@ -1050,34 +1629,37 @@ class HomeController extends GetxController {
 
     return result;
   }
+
   Future<void> moveFileToGallery(String filepath) async {
     final file = File(filepath); // Replace with your file path
     final galleryDirectory = await getExternalStorageDirectory();
-    final newFilePath = '${galleryDirectory!.path}/DCIM/${file.path.split('/').last}';
+    final newFilePath =
+        '${galleryDirectory!.path}/DCIM/${file.path.split('/').last}';
     await file.copy(newFilePath);
   }
+
   //here is the code for backup fetching function
-  void runBackupdownload(String url){
-    String shortCode=extractShortcode(url);
+  void runBackupdownload(String url) {
+    String shortCode = extractShortcode(url);
     extractfromBulkScraper(shortCode);
   }
 
   String extractShortcode(String url) {
     // Splitting the URL by '/' and getting the last part
     List<String> parts = url.split('/');
-    String secondlastPart = parts[parts.length-2];
+    String secondlastPart = parts[parts.length - 2];
 
     // Removing any query parameters or fragments
     if (parts.last.contains('?')) {
       List<String> queryParams = parts.last.split('?');
-      print("Query partams is ${ queryParams[0]}");
+      print("Query partams is ${queryParams[0]}");
       return secondlastPart;
     }
     return parts.last;
-  //  print("Short code is $lastPart");
+    //  print("Short code is $lastPart");
   }
 
-  void extractfromBulkScraper(String shortcode) async{
+  void extractfromBulkScraper(String shortcode) async {
     final String url =
         'https://instagram-bulk-scraper-latest.p.rapidapi.com/webmedia_info_from_shortcode/$shortcode';
 
@@ -1089,7 +1671,7 @@ class HomeController extends GetxController {
       final response = await http.get(Uri.parse(url), headers: headers);
       if (response.statusCode == 200) {
         //print(response.body);
-       // parseBackUpResponsetoOutput(response.body);
+        // parseBackUpResponsetoOutput(response.body);
       } else {
         seterrorthrowntrue();
         print('Error from bulk scraper');
@@ -1099,6 +1681,7 @@ class HomeController extends GetxController {
       print('Error: $error');
     }
   }
+
   /*void parseBackUpResponsetoOutput(String responsebody) {
     // String finalpurestring = sampleResponsefromreels.replaceAll(RegExp(r'[^\x00-\x7F]+'), '');
     String finalpurestring =
@@ -1142,17 +1725,20 @@ class HomeController extends GetxController {
     }*/
     update();
   }*/
-  void runnewMainDownload(String url){
-    String shortCode=extractShortcode(url);
-    parseFromNewApiStructure(urli:url,shortcode: shortCode);
+  void runnewMainDownload(String url) {
+    String shortCode = extractShortcode(url);
+    parseFromNewApiStructure(urli: url, shortcode: shortCode);
   }
 
-  void parseFromNewApiStructure({@required String? urli,@required String? shortcode})async{
-    final Uri url = Uri.parse('https://instagram-saver-download-anything-on-instagram.p.rapidapi.com/post_data');
+  void parseFromNewApiStructure(
+      {@required String? urli, @required String? shortcode}) async {
+    final Uri url = Uri.parse(
+        'https://instagram-saver-download-anything-on-instagram.p.rapidapi.com/post_data');
     final Map<String, String> headers = {
       'content-type': 'application/x-www-form-urlencoded',
       'X-RapidAPI-Key': '1b6b87d966msh79911a19efb2892p1e4e0fjsn0e980c80dc71',
-      'X-RapidAPI-Host': 'instagram-saver-download-anything-on-instagram.p.rapidapi.com',
+      'X-RapidAPI-Host':
+          'instagram-saver-download-anything-on-instagram.p.rapidapi.com',
     };
 
     final Map<String, String> body = {
@@ -1173,11 +1759,12 @@ class HomeController extends GetxController {
       print(response.body);
     }
   }
+
   void parseTikTokResponsetoOutput(TikTokResponse tikTokResponse) {
     // String finalpurestring = sampleResponsefromreels.replaceAll(RegExp(r'[^\x00-\x7F]+'), '');
-   String responsebody="";
+    String responsebody = "";
     String finalpurestring =
-    responsebody.replaceAll(RegExp(r'[\x00-\x1F]'), '');
+        responsebody.replaceAll(RegExp(r'[\x00-\x1F]'), '');
     setloadingfalse();
     update();
 
@@ -1197,7 +1784,7 @@ class HomeController extends GetxController {
     update();
   }
 
-  void tikTokAPIResponse(String tiktokUrl)async{
+  void tikTokAPIResponse(String tiktokUrl) async {
     final baseUrl = 'tiktok-download-without-watermark.p.rapidapi.com';
     final path = '/analysis';
     final queryParams = {'url': tiktokUrl, 'hd': '0'};
@@ -1215,7 +1802,7 @@ class HomeController extends GetxController {
       print("We are here succesfully");
       final jsonResponse = json.decode(response.body);
       final tikTokResponse = TikTokResponse.fromJson(jsonResponse);
-      receivedtiktokResponse=TikTokResponse.fromJson(jsonResponse);
+      receivedtiktokResponse = TikTokResponse.fromJson(jsonResponse);
       parseTikTokResponsetoOutput(receivedtiktokResponse!);
       print("response code and title are:\n");
       // Now you have the TikTokResponse instance.
@@ -1226,13 +1813,12 @@ class HomeController extends GetxController {
       print(tikTokResponse.data.cover);
       print("Video Link is:\n");
       print(tikTokResponse.data.play);
-
+      print("Music cover is:\n");
+      print(tikTokResponse.data.musicInfo.cover);
     } else {
       seterrorthrowntrue();
       print('Error from bulk scraper');
       print('Request failed with status: ${response.statusCode}');
-
     }
   }
-
 }

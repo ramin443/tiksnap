@@ -29,6 +29,7 @@ class Home extends StatelessWidget {
             children: [
              homecontroller.linktextfield(context),
               homecontroller.linkpasterow(context),
+          //    homecontroller.downloadVideoAudioButtons(context),
          /*     AppBar(
                 backgroundColor: Colors.white,
                 elevation: 0,
@@ -36,6 +37,7 @@ class Home extends StatelessWidget {
                   IconButton(onPressed: (){
                     homecontroller.parseResponsetoOutput(sampleResponsefromreels);
                   }, icon:
+                  Icon(CupertinoIcons.plus_circle_fill,
                   Icon(CupertinoIcons.plus_circle_fill,
                   size: 24,
                   color: Colors.black54,))

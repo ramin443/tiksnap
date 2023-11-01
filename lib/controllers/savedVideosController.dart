@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:feather_icons/feather_icons.dart';
@@ -6,6 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:tiksnap/constants/teststrings.dart';
+import 'package:tiksnap/dbhelpers/SavedAudiosDBHelper.dart';
+import 'package:tiksnap/models/SavedAudios.dart';
+import 'package:tiksnap/models/tiktokResponseModel.dart';
 
 
 import '../constants/colorconstants.dart';
@@ -24,9 +30,10 @@ final AdController adController =
 Get.put(AdController());
 class SavedVideosController extends GetxController {
   final dbHelper = SavedVideosDatabaseHelper();
+  final audiodbHelper = SavedAudiosDatabaseHelper();
   int downloadslength=0;
   int openVideotaps=0;
-
+  TikTokResponse sampletikTokResponse=TikTokResponse.fromJson(json.decode(sampleResponsefromTikTok));
   SavedVideos savedvideoModel = SavedVideos(
      // id: 1,
       caption: "Wir sind hier \n WIr haben biuer dabei",
@@ -117,6 +124,43 @@ class SavedVideosController extends GetxController {
     downloadslength=recordCount;
     update();
   }
+  Widget savedVidsTab(BuildContext context){
+    double screenwidth = MediaQuery.sizeOf(context).width;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(height: screenwidth*0.06,),
+        databasesavedVidGrid(context)
+      ],
+    );
+  }
+  Widget savedAudiosTab(BuildContext context){
+    double screenwidth = MediaQuery.sizeOf(context).width;
+    return SingleChildScrollView(
+      physics: BouncingScrollPhysics(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: screenwidth*0.06,),
+          databasesavedAudioGrid(context),
+          SizedBox(height: screenwidth*0.06,),
+        ],
+      ),
+    );
+  }
+  /*Widget databasesavedAudioGrid(BuildContext context){
+    double screenwidth = MediaQuery.sizeOf(context).width;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        for(int i=0;i<8;i++)
+        savedAudioBox(context: context,sav: sampletikTokResponse.data)
+      ],
+    );
+  }
+  */
   Widget databasesavedVidGrid(BuildContext context) {
     double screenwidth = MediaQuery.sizeOf(context).width;
     return FutureBuilder<List<SavedVideos>>(
@@ -169,6 +213,64 @@ class SavedVideosController extends GetxController {
                   valueColor: AlwaysStoppedAnimation<Color>(
                       Colors.redAccent),
                   backgroundColor: Colors.black12,
+
+
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget databasesavedAudioGrid(BuildContext context) {
+    double screenwidth = MediaQuery.sizeOf(context).width;
+    return FutureBuilder<List<SavedAudios>>(
+      future: audiodbHelper.getAllAudios(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final audios = snapshot.data!;
+          return audios.isEmpty?
+          emptydownloadstate(context):
+          Container(
+              width: screenwidth,
+//              alignment: Alignment.center,
+              padding: EdgeInsets.symmetric(
+//      horizontal: 21
+                  horizontal: screenwidth * 0.04109),
+              child:  ListView.builder(
+              shrinkWrap: true,
+              physics: BouncingScrollPhysics(),
+              itemCount: audios.length,
+              scrollDirection: Axis.vertical,
+              itemBuilder: (context, index) {
+                final audio = audios[index];
+                return savedAudioBox(context: context,savedAudio: audio);
+              }));
+          /* ListView.builder(
+            itemCount: videos.length,
+            itemBuilder: (context, index) {
+              final video = videos[index];
+              return ListTile(
+                title: Text(video.caption!),
+                subtitle: Text(video.url!),
+              );
+            },
+          );*/
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}'),
+          );
+        } else {
+          return Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.redAccent),
+                backgroundColor: Colors.black12,
 
 
               ),
@@ -661,6 +763,7 @@ class SavedVideosController extends GetxController {
         icon: Icon(FeatherIcons.info,
         color: Colors.white,
         size: screenwidth*0.064,),
+
       ),
       actions: [
         Container(
@@ -779,5 +882,119 @@ class SavedVideosController extends GetxController {
         ],
       ),
     );
+  }
+
+  Widget savedAudioBox(
+      {BuildContext? context, SavedAudios? savedAudio,String? audiotitle, String? audioThumbnail, String? audioauthor,
+        String? audioduration
+      }){
+    double screenwidth = MediaQuery.of(context!).size.width;
+    return  Container(
+      width: screenwidth * 0.92,
+      margin: EdgeInsets.only(bottom: screenwidth*0.026),
+      padding: EdgeInsets.symmetric(
+          horizontal: screenwidth * 0.0282, vertical: screenwidth * 0.046),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          color: tiksaverdarkgreybg),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                margin: EdgeInsets.only(right: screenwidth*0.0435),
+                width: screenwidth*0.176,
+                height: screenwidth*0.176,
+                decoration: BoxDecoration(
+                  color: Color(0xff717171),
+                  shape: BoxShape.circle,
+                ),
+                child: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl:savedAudio!.cover!,
+                      width: screenwidth*0.176,
+                      height: screenwidth*0.176,
+                    errorWidget: (context,error,widget){
+                      return SizedBox(height: 0,);
+                    },
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(
+                      bottom: screenwidth*0.03
+                     ),
+                    child: Text(
+                      savedAudio!.title!,
+                      textAlign: TextAlign.left,
+                      maxLines: 2,
+                      style: TextStyle(
+                          fontFamily: alshaussmedium,
+                          color: Colors.white,
+                          //    fontSize: 14.5
+                          fontSize: screenwidth * 0.038),
+                    ),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: EdgeInsets.only(
+                        ),
+                        child: Text(
+                          savedAudio!.author!,
+                        //  audioauthor!,
+                          textAlign: TextAlign.left,
+                          maxLines: 2,
+                          style: TextStyle(
+                              fontFamily: alshaussregular,
+                              color: Colors.white,
+                              //    fontSize: 14.5
+                              fontSize: screenwidth * 0.038),
+                        ),
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(
+                          top: 2
+                        ),
+                        child: Text(
+                          formatDuration(savedAudio!.duration!),
+                         // audioduration!,
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                              fontFamily: alshaussregular,
+                              color: Colors.white,
+                              //    fontSize: 14.5
+                              fontSize: screenwidth * 0.038),
+                        ),
+                      ),
+                    ],
+                  )
+
+                ],
+              )
+
+            ],
+          )
+        ],
+      ),
+    );
+  }
+  String formatDuration(int seconds) {
+    print("Printing seconds here:$seconds");
+    int minutes = (seconds / 60).truncate();
+    int remainingSeconds = seconds % 60;
+    String minutesStr = minutes.toString().padLeft(2, '0');
+    String secondsStr = remainingSeconds.toString().padLeft(2, '0');
+    print('bleh here$minutesStr:$secondsStr');
+    String finalstring="$minutesStr : $secondsStr";
+    return finalstring;
   }
 }
