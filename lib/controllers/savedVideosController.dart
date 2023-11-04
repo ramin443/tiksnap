@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tiksnap/constants/teststrings.dart';
 import 'package:tiksnap/dbhelpers/SavedAudiosDBHelper.dart';
 import 'package:tiksnap/models/SavedAudios.dart';
@@ -903,24 +906,54 @@ class SavedVideosController extends GetxController {
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Container(
-                margin: EdgeInsets.only(right: screenwidth*0.0435),
-                width: screenwidth*0.176,
-                height: screenwidth*0.176,
-                decoration: BoxDecoration(
-                  color: Color(0xff717171),
-                  shape: BoxShape.circle,
-                ),
-                child: ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl:savedAudio!.cover!,
-                      width: screenwidth*0.176,
-                      height: screenwidth*0.176,
-                    errorWidget: (context,error,widget){
-                      return SizedBox(height: 0,);
-                    },
+              Stack(
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(right: screenwidth*0.0435),
+                    width: screenwidth*0.176,
+                    height: screenwidth*0.176,
+                    decoration: BoxDecoration(
+                      color: Color(0xff717171),
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl:savedAudio!.cover!,
+                          width: screenwidth*0.176,
+                          height: screenwidth*0.176,
+                        errorWidget: (context,error,widget){
+                          return SizedBox(height: 0,);
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  Container(
+                    width: screenwidth*0.176,
+                    height: screenwidth*0.176,
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(
+                          sigmaX: 4,sigmaY:4
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.only(left: screenwidth*0.01),
+                          child: IconButton(
+                            onPressed: (){
+                              checkpermissionsandOpenAudio(savedAudio.fileLocationPath!);
+                            },
+                            icon: Icon(CupertinoIcons.play_fill,
+                            color: Colors.white,
+                                size: screenwidth*0.064,),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                ],
               ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -996,5 +1029,26 @@ class SavedVideosController extends GetxController {
     print('bleh here$minutesStr:$secondsStr');
     String finalstring="$minutesStr : $secondsStr";
     return finalstring;
+  }
+  void checkpermissionsandOpenAudio(String filelocationPath) async {
+    var status = await Permission.manageExternalStorage.status;
+    if (!status.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
+    openAudioFile(filelocationPath);
+  }
+
+  Future<void> openAudioFile(String filelocationPath) async {
+    String filePath = filelocationPath; // Replace with the actual file path
+    try {
+      final result = await OpenFile.open(filePath);
+      if (result.type == ResultType.done) {
+        print('File opened successfully.');
+      } else {
+        print('Error opening the file: ${result.message}');
+      }
+    } catch (e) {
+      print('Error opening the file: $e');
+    }
   }
 }

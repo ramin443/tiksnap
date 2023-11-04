@@ -18,6 +18,7 @@ class SavedAudiosDatabaseHelper {
   static final columnauthor = 'author';
   static final columnduration = 'duration';
   static final columnalbum = 'album';
+  static final columnFileLocationPath = 'fileLocationPath';
 
   Database? _database;
 
@@ -48,7 +49,9 @@ class SavedAudiosDatabaseHelper {
         $columncover TEXT NOT NULL,
         $columnauthor TEXT NOT NULL,
         $columnduration INTEGER NOT NULL,
-        $columnalbum TEXT NOT NULL
+        $columnalbum TEXT NOT NULL,
+        $columnFileLocationPath TEXT NOT NULL
+
       )
     ''');
   }
@@ -87,7 +90,9 @@ class SavedAudiosDatabaseHelper {
             cover: maps[i][columncover],
             author: maps[i][columnauthor],
             duration: maps[i][columnduration],
-            album: maps[i][columnalbum]);
+            album: maps[i][columnalbum],
+          fileLocationPath: maps[i][columnFileLocationPath]
+        );
     });
   }
 }

@@ -6,6 +6,7 @@ class SavedAudios {
   String? author;
   int? duration;
   String? album;
+  String? fileLocationPath;
 
 
   SavedAudios({
@@ -15,6 +16,7 @@ class SavedAudios {
     required this.author,
     required this.duration,
     required this.album,
+    required this.fileLocationPath,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class SavedAudios {
       'author': author,
       'duration': duration,
       'album': album,
+      'fileLocationPath': fileLocationPath,
     };
   }
   SavedAudios.fromMap(Map<String, dynamic> map) {
@@ -36,6 +39,7 @@ class SavedAudios {
     author = map['author'];
     duration = map['duration'];
     album = map['album'];
+    fileLocationPath = map['fileLocationPath'];
   }
 
 }
