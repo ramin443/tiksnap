@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tiksnap/constants/teststrings.dart';
 import 'package:tiksnap/dbhelpers/SavedAudiosDBHelper.dart';
@@ -22,6 +21,7 @@ import '../constants/fontconstants.dart';
 import '../constants/imageconstants.dart';
 import '../dbhelpers/SavedVideosDBHelper.dart';
 import '../models/SavedVideos.dart';
+import '../screens/base/secondary/audioPlayPage.dart';
 import '../screens/base/secondary/offlinePlayPage.dart';
 import '../screens/base/secondary/videoPlayPage.dart';
 import '../screens/sharablewidgets/deletevideo.dart';
@@ -36,6 +36,7 @@ class SavedVideosController extends GetxController {
   final audiodbHelper = SavedAudiosDatabaseHelper();
   int downloadslength=0;
   int openVideotaps=0;
+  int openAudiotaps = 0;
   TikTokResponse sampletikTokResponse=TikTokResponse.fromJson(json.decode(sampleResponsefromTikTok));
   SavedVideos savedvideoModel = SavedVideos(
      // id: 1,
@@ -943,7 +944,16 @@ class SavedVideosController extends GetxController {
                           padding: EdgeInsets.only(left: screenwidth*0.01),
                           child: IconButton(
                             onPressed: (){
-                              checkpermissionsandOpenAudio(savedAudio.fileLocationPath!);
+                              //Open Audio here
+                              incrementopenAudiotaps();
+                              incrementaudioplaysfortoday();
+                              //Push Audio Play Page
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => AudioPlayPage(
+                                          savedAudios: savedAudio)));
+                            //  checkpermissionsandOpenAudio(savedAudio.fileLocationPath!);
                             },
                             icon: Icon(CupertinoIcons.play_fill,
                             color: Colors.white,
@@ -1009,13 +1019,7 @@ class SavedVideosController extends GetxController {
                         ),
                       ),
                     ],
-                  )
-
-                ],
-              )
-
-            ],
-          )
+                  )],)],)
         ],
       ),
     );
@@ -1030,25 +1034,36 @@ class SavedVideosController extends GetxController {
     String finalstring="$minutesStr : $secondsStr";
     return finalstring;
   }
-  void checkpermissionsandOpenAudio(String filelocationPath) async {
-    var status = await Permission.manageExternalStorage.status;
-    if (!status.isGranted) {
-      await Permission.manageExternalStorage.request();
+  void incrementopenAudiotaps() {
+    openAudiotaps++;
+    int playtaplimit = adController.playtapfrequency;
+
+    if (openAudiotaps % playtaplimit == 0) {
+      adController.showInterstitialAd();
     }
-    openAudioFile(filelocationPath);
+    update();
+  }
+  void incrementaudioplaysfortoday() async {
+    // Get reference to Firestore collection
+    var collectionRef = FirebaseFirestore.instance.collection('Plays');
+    /*var doc = await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .get();
+    if (doc.exists) {
+      await FirebaseFirestore.instance
+          .collection("Plays")
+          .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+          .update({"numberofplays": FieldValue.increment(1)});
+    } else {
+      await FirebaseFirestore.instance
+          .collection("Plays")
+          .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+          .set({"numberofplays": 1});
+    }*/
+    await collectionRef
+        .doc(DateFormat.yMMMMd('en_US').format(DateTime.now()))
+        .set({"numberofaudioplays": FieldValue.increment(1)},
+        SetOptions(merge: true));
   }
 
-  Future<void> openAudioFile(String filelocationPath) async {
-    String filePath = filelocationPath; // Replace with the actual file path
-    try {
-      final result = await OpenFile.open(filePath);
-      if (result.type == ResultType.done) {
-        print('File opened successfully.');
-      } else {
-        print('Error opening the file: ${result.message}');
-      }
-    } catch (e) {
-      print('Error opening the file: $e');
-    }
-  }
 }

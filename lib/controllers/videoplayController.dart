@@ -85,6 +85,12 @@ class VideoPlayController extends GetxController{
     }
     update();
   }
+  void onBackButtonPressed(){
+    if (vidcontroller.value.isPlaying) {
+      vidcontroller.pause();
+      update();
+    }
+  }
   Future<bool> onBackPressed() async {
     // Execute your custom function here
     if (vidcontroller.value.isPlaying) {

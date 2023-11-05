@@ -13,13 +13,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:sqflite/sqflite.dart';
 import 'package:tiksnap/dbhelpers/SavedAudiosDBHelper.dart';
 import 'package:tiksnap/models/SavedAudios.dart';
+import 'package:tiksnap/screens/base/secondary/audioPlayPage.dart';
 import '../constants/colorconstants.dart';
 import '../constants/fontconstants.dart';
 import '../constants/teststrings.dart';
@@ -790,13 +790,20 @@ class HomeController extends GetxController {
                   incrementopenAudiotaps();
                   incrementaudioplaysfortoday();
                   //Push Audio Play Page
-                  /*Navigator.push(
+                  SavedAudios savedAudioModel=SavedAudios(
+                      title: receivedtiktokResponse!.data.musicInfo.title,
+                      play: receivedtiktokResponse!.data.musicInfo.play,
+                      cover: receivedtiktokResponse!.data.musicInfo.cover,
+                      author: receivedtiktokResponse!.data.musicInfo.author,
+                      duration: receivedtiktokResponse!.data.musicInfo.duration,
+                      album: receivedtiktokResponse!.data.musicInfo.album,
+                      fileLocationPath: lastsavedaudiofileLocation);
+                  Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => VideoPlayPage(
-                              url: receivedtiktokResponse!.data.play)));
-                  */
-                  checkpermissionsandOpenAudio(lastsavedaudiofileLocation);
+                          builder: (context) => AudioPlayPage(
+                              savedAudios: savedAudioModel)));
+
                 },
                 child: Container(
                   width: screenwidth * 0.33,
@@ -895,12 +902,6 @@ class HomeController extends GetxController {
   }
 
   void checkpermissionsandDownloadVideo() async {
-    var manageExternalStoragestatus =
-        await Permission.manageExternalStorage.status;
-
-    if (manageExternalStoragestatus.isDenied) {
-      await Permission.manageExternalStorage.request();
-    }
     incrementDownloadtaps();
     testdownload(receivedtiktokResponse!.data.play);
     setdownloadProgress(1);
@@ -908,24 +909,13 @@ class HomeController extends GetxController {
   }
 
   void checkpermissionsandDownloadAudio() async {
-    var manageExternalStoragestatus =
-        await Permission.manageExternalStorage.status;
 
-    if (manageExternalStoragestatus.isDenied) {
-      await Permission.manageExternalStorage.request();
-    }
     incrementAudioDownloadtaps();
     testAudiodownload(receivedtiktokResponse!.data.musicInfo.play);
     setaudiodownloadProgress(1);
     incrementaudiodownloadsfortoday();
   }
-  void checkpermissionsandOpenAudio(String filelocationPath) async {
-    var status = await Permission.manageExternalStorage.status;
-    if (!status.isGranted) {
-      await Permission.manageExternalStorage.request();
-    }
-    openAudioFile(filelocationPath);
-  }
+
   Widget downloadbutton(BuildContext context) {
     double screenwidth = MediaQuery.sizeOf(context).width;
     return GestureDetector(
@@ -1883,17 +1873,5 @@ class HomeController extends GetxController {
       print('Request failed with status: ${response.statusCode}');
     }
   }
-  Future<void> openAudioFile(String filelocationPath) async {
-    String filePath = filelocationPath; // Replace with the actual file path
-    try {
-      final result = await OpenFile.open(filePath);
-      if (result.type == ResultType.done) {
-        print('File opened successfully.');
-      } else {
-        print('Error opening the file: ${result.message}');
-      }
-    } catch (e) {
-      print('Error opening the file: $e');
-    }
-  }
+
 }

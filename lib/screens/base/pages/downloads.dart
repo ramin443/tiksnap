@@ -46,7 +46,7 @@ class Downloads extends StatelessWidget {
                   leading: IconButton(
                     onPressed: (){},
                     icon: Icon(FeatherIcons.info,
-                      color: Colors.white,
+                      color: Colors.transparent,
                       size: screenwidth*0.064,),
                   ),
                   actions: [
