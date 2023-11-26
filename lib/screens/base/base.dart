@@ -34,7 +34,6 @@ class Base extends StatelessWidget {
                 adcontroller.initializestreams();
                 adcontroller.initializebannerAd();
                 adcontroller.initializeInterstitialAd();
-                adcontroller.initializeRewardedAd();
               },
               init: BaseController(),
               builder: (basecontroller) {

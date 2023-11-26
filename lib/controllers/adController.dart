@@ -16,8 +16,8 @@ class AdController extends GetxController{
   int rewardedScore=0;
   DatabaseReference interstitialref = FirebaseDatabase.instance.ref().child("interstitialads");
   DatabaseReference bannerref = FirebaseDatabase.instance.ref().child("bannerads");
-  DatabaseReference downtapfreqref = FirebaseDatabase.instance.ref("downloadtapfrequency");
-  DatabaseReference playtapfreqref = FirebaseDatabase.instance.ref("playtapfrequency");
+  DatabaseReference downtapfreqref = FirebaseDatabase.instance.ref().child("downloadtapfrequency");
+  DatabaseReference playtapfreqref = FirebaseDatabase.instance.ref().child("playtapfrequency");
   late StreamSubscription<DatabaseEvent> showinterstitialsubscription;
   late StreamSubscription<DatabaseEvent> showbannersubscription;
   late StreamSubscription<DatabaseEvent> downtapfreqsubcription;
@@ -43,6 +43,7 @@ class AdController extends GetxController{
       playtapfrequency=event.snapshot.value as int;
     });
    // update();
+    print("Setting showbanner ads as $showbannerads");
   }
 
   static final BannerAdListener bannerAdListener = BannerAdListener(
@@ -75,20 +76,7 @@ class AdController extends GetxController{
              interstitialAd=null;
        }));
   }
-  void initializeRewardedAd()async{
-    RewardedAd.load(
-        adUnitId: rewardadunitid,
-        request: const AdRequest(),
-        rewardedAdLoadCallback:  RewardedAdLoadCallback(
-            onAdLoaded: (ad){
-              rewardedAd=ad;
-              update();
-            },
-            onAdFailedToLoad: (error){
-              rewardedAd=null;
-              update();
-            }));
-  }
+
   void showInterstitialAd(){
     if(showinterstitialads){
       if(interstitialAd !=null){
@@ -111,33 +99,14 @@ class AdController extends GetxController{
     }
 
   }
-  void showRewardedAd(){
-    if(rewardedAd!=null){
-      rewardedAd!.fullScreenContentCallback=FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad){
-          ad.dispose();
-          initializeRewardedAd();
-        },
-        onAdFailedToShowFullScreenContent: (ad,error){
-          ad.dispose();
-          initializeRewardedAd();
-        }
-      );
-      rewardedAd!.show(onUserEarnedReward: (ad, reward){
-        rewardedScore=rewardedScore+int.parse(reward.toString());
-        print("New rewarded score is $rewardedScore after adding $reward");
-        update();
-      });
-      rewardedAd=null;
-    }
-  }
+
   Widget displayBannerWidget(BuildContext context){
     double screenwidth=MediaQuery.sizeOf(context).width;
     return
       showbannerads?
       bannerAd==null?
 
-    SizedBox(
+      SizedBox(
       height: 0,
     ):
     FloatingActionButton.extended(
@@ -153,7 +122,9 @@ class AdController extends GetxController{
           ad: bannerAd!,
         ),
       ),
-    ):SizedBox(height: 0,);
+    ):SizedBox(
+        height: 0,
+      );
   }
   void fetchbanneradsVal() {
     bannerref.once().then((value) {
