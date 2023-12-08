@@ -1,36 +1,39 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:tiksnap/controllers/adController.dart';
 
 import '../../../constants/fontconstants.dart';
 import '../../../controllers/homeController.dart';
+
 class Home extends StatelessWidget {
   const Home({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     double screenwidth = MediaQuery.of(context).size.width;
-    return GetBuilder<HomeController>(
-        initState: (v){
-
-        },
-
-        init: HomeController(),
-        builder: (homecontroller){
-      return SingleChildScrollView(
-        physics: BouncingScrollPhysics(),
-        child: Container(
-          width: screenwidth,
-          padding: EdgeInsets.only(bottom:  screenwidth*0.148),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-             homecontroller.linktextfield(context),
-              homecontroller.linkpasterow(context),
-          //    homecontroller.downloadVideoAudioButtons(context),
-         /*     AppBar(
+    return GetBuilder<AdController>(
+        initState: (v) {},
+        init: AdController(),
+        builder: (adcontroller) {
+          return GetBuilder<HomeController>(
+              initState: (v) {},
+              init: HomeController(),
+              builder: (homecontroller) {
+                return SingleChildScrollView(
+                  physics: BouncingScrollPhysics(),
+                  child: Container(
+                    width: screenwidth,
+                    padding: EdgeInsets.only(bottom: screenwidth * 0.148),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        adcontroller.displayBannerWidget(context),
+                        homecontroller.linktextfield(context),
+                        homecontroller.linkpasterow(context),
+                        //    homecontroller.downloadVideoAudioButtons(context),
+                        /*     AppBar(
                 backgroundColor: Colors.white,
                 elevation: 0,
                 actions: [
@@ -44,13 +47,13 @@ class Home extends StatelessWidget {
                 ],
               ),
               */
-          //    homecontroller.downloadProgressBar(context),
-              homecontroller.homeMainColumn(context),
-
-            ],
-          ),
-        ),
-      );
-    });
+                        //    homecontroller.downloadProgressBar(context),
+                        homecontroller.homeMainColumn(context),
+                      ],
+                    ),
+                  ),
+                );
+              });
+        });
   }
 }

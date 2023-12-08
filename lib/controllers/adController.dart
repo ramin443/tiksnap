@@ -11,6 +11,7 @@ import '../constants/adconstants.dart';
 
 class AdController extends GetxController{
   BannerAd? bannerAd;
+  BannerAd? downloadsbannerAd;
   InterstitialAd? interstitialAd;
   RewardedAd? rewardedAd;
   int rewardedScore=0;
@@ -64,6 +65,8 @@ class AdController extends GetxController{
   void initializebannerAd()async{
     bannerAd=BannerAd(size: AdSize.fullBanner, adUnitId: banneradunitid,
         listener: bannerAdListener, request: const AdRequest())..load();
+    downloadsbannerAd=BannerAd(size: AdSize.fullBanner, adUnitId: banneradunitid,
+        listener: bannerAdListener, request: const AdRequest())..load();
   }
 
   void initializeInterstitialAd()async{
@@ -114,15 +117,45 @@ class AdController extends GetxController{
       elevation: 0,
       foregroundColor: Colors.transparent,
       onPressed: (){},
-      label: Container(
-        height: screenwidth*0.148,
-        width: screenwidth,
-        margin: EdgeInsets.all(0), // No margin
-        child: AdWidget(
-          ad: bannerAd!,
-        ),
+      label: StatefulBuilder(
+        builder: (context, setState) {
+          return Container(
+            height: screenwidth*0.148,
+            width: screenwidth,
+            margin: EdgeInsets.all(0), // No margin
+            child: AdWidget(
+              ad: bannerAd!,
+            ),
+          );
+        }
       ),
     ):SizedBox(
+        height: 0,
+      );
+  }
+  Widget displayDownloadsBannerWidget(BuildContext context){
+    double screenwidth=MediaQuery.sizeOf(context).width;
+    return
+      showbannerads?
+      downloadsbannerAd==null?
+
+      SizedBox(
+        height: 0,
+      ):
+      FloatingActionButton.extended(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.transparent,
+        onPressed: (){},
+        label: Container(
+          height: screenwidth*0.148,
+          width: screenwidth,
+          margin: EdgeInsets.all(0), // No margin
+          child: AdWidget(
+            ad: downloadsbannerAd!,
+          ),
+        ),
+      ):SizedBox(
         height: 0,
       );
   }
